@@ -1,5 +1,5 @@
 use clap::Parser;
-use std::{env, fs, io::Error, path::PathBuf, collections::HashMap};
+use std::{collections::HashMap, env, fs, io::Error, path::PathBuf};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about=None)]
@@ -29,13 +29,95 @@ fn on_read_successful(contents: Vec<u8>) {
         match freq_table.get(&byte) {
             Some(count) => {
                 freq_table.insert(byte, count + 1);
-            },
+            }
             None => {
                 freq_table.insert(byte, 1);
-            },
+            }
         }
     }
-    println!("{:?}", freq_table);
+    let mut freq_vec: Vec<(u8, usize)> = freq_table.into_iter().collect();
+    freq_vec.sort_by(|&(_, a), &(_, b)| a.cmp(&b));
+    let node_vec: Vec<HuffmanNode> = vec![];
+    let huffman_tree = create_huffman_tree(node_vec, freq_vec);
+}
+
+fn create_huffman_tree(
+    mut node_vec: Vec<HuffmanNode>,
+    mut freq_vec: Vec<(u8, usize)>,
+) -> Vec<HuffmanNode> {
+    let left_child = freq_vec.first().map(|item| {
+        Box::new(HuffmanNode {
+            value: Some(item.0),
+            frequency: item.1,
+            left: None,
+            right: None,
+        })
+    });
+
+    let right_child = freq_vec.get(1).map(|item| {
+        Box::new(HuffmanNode {
+            value: Some(item.0),
+            frequency: item.1,
+            left: None,
+            right: None,
+        })
+    });
+
+    if left_child.is_none() && right_child.is_none() {
+        return node_vec;
+    }
+
+    if left_child.is_some() {
+        freq_vec.remove(0);
+    }
+
+    if right_child.is_some() {
+        freq_vec.remove(0);
+    }
+
+    node_vec.push(HuffmanNode::new(None, left_child, right_child));
+
+    if !freq_vec.is_empty() {
+        return create_huffman_tree(node_vec, freq_vec);
+    }
+
+    node_vec
+}
+
+struct HuffmanNode {
+    value: Option<u8>,
+    frequency: usize,
+    left: Option<Box<HuffmanNode>>,
+    right: Option<Box<HuffmanNode>>,
+}
+
+impl HuffmanNode {
+    pub fn new(
+        value: Option<u8>,
+        left: Option<Box<HuffmanNode>>,
+        right: Option<Box<HuffmanNode>>,
+    ) -> Self {
+        let new_node = HuffmanNode {
+            value,
+            frequency: 0,
+            left,
+            right,
+        };
+        new_node.calculate_freq();
+        new_node
+    }
+
+    fn calculate_freq(&self) -> usize {
+        let left_freq = self
+            .left
+            .as_ref()
+            .map_or_else(|| 0, |child| child.frequency);
+        let right_freq = self
+            .right
+            .as_ref()
+            .map_or_else(|| 0, |child| child.frequency);
+        left_freq + right_freq
+    }
 }
 
 fn create_file_path(file_path: String) -> Result<PathBuf, Error> {
