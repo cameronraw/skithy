@@ -38,10 +38,36 @@ fn on_read_successful(contents: Vec<u8>) {
     let mut freq_vec: Vec<(u8, usize)> = freq_table.into_iter().collect();
     freq_vec.sort_by(|&(_, a), &(_, b)| a.cmp(&b));
     let node_vec: Vec<HuffmanNode> = vec![];
-    let huffman_tree = create_huffman_tree(node_vec, freq_vec);
+    let huffman_vec = create_huffman_vec(node_vec, freq_vec);
+    let huffman_tree = create_huffman_tree(huffman_vec);
 }
 
-fn create_huffman_tree(
+fn create_huffman_tree(mut huffman_vec: Vec<HuffmanNode>) -> HuffmanNode {
+    if huffman_vec.is_empty() {
+        return HuffmanNode::new(None, None, None);
+    }
+
+    if huffman_vec.len() == 1 {
+        // TODO: Return the node
+        return huffman_vec.first().unwrap().clone();
+    }
+
+    let left_child = huffman_vec.first().map(|item| Box::new(item.clone()));
+    let right_child = huffman_vec.get(1).map(|item| Box::new(item.clone()));
+
+    if left_child.is_some() {
+        huffman_vec.remove(0);
+    }
+    if right_child.is_some() {
+        huffman_vec.remove(0);
+    }
+
+    huffman_vec.push(HuffmanNode::new(None, left_child, right_child));
+
+    create_huffman_tree(huffman_vec)
+}
+
+fn create_huffman_vec(
     mut node_vec: Vec<HuffmanNode>,
     mut freq_vec: Vec<(u8, usize)>,
 ) -> Vec<HuffmanNode> {
@@ -78,12 +104,13 @@ fn create_huffman_tree(
     node_vec.push(HuffmanNode::new(None, left_child, right_child));
 
     if !freq_vec.is_empty() {
-        return create_huffman_tree(node_vec, freq_vec);
+        return create_huffman_vec(node_vec, freq_vec);
     }
 
     node_vec
 }
 
+#[derive(Clone)]
 struct HuffmanNode {
     value: Option<u8>,
     frequency: usize,
