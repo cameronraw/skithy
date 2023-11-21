@@ -29,7 +29,9 @@ fn on_read_successful(contents: Vec<u8>) {
     // freq_vec.sort_by(|&(_, a), &(_, b)| a.cmp(&b));
     let freq_vec = frequency_table_to_ordered_tuple_vec(freq_table);
     let huffman_vec = create_huffman_node_vec(freq_vec);
-    let _huffman_tree = create_huffman_tree(huffman_vec);
+    let mut huffman_tree = create_huffman_tree(huffman_vec);
+    assign_binary(&mut huffman_tree, vec![]);
+    print!("{:?}", huffman_tree);
 }
 
 fn frequency_table_to_ordered_tuple_vec(freq_table: HashMap<u8, usize>) -> Vec<(u8, usize)> {
@@ -62,7 +64,9 @@ fn create_huffman_tree(mut huffman_vec: Vec<HuffmanNode>) -> HuffmanNode {
         return huffman_vec.first().unwrap().clone();
     }
 
-    let left_child = huffman_vec.first().map(|item| Box::new(item.clone()));
+    let left_child = huffman_vec.first().map(|item| {
+        Box::new(item.clone())
+    });
     let right_child = huffman_vec.get(1).map(|item| Box::new(item.clone()));
 
     if left_child.is_some() {
@@ -80,6 +84,7 @@ fn create_huffman_tree(mut huffman_vec: Vec<HuffmanNode>) -> HuffmanNode {
 #[derive(Clone, Debug)]
 struct HuffmanNode {
     value: Option<u8>,
+    binary: Vec<bool>,
     frequency: usize,
     left: Option<Box<HuffmanNode>>,
     right: Option<Box<HuffmanNode>>,
@@ -94,6 +99,7 @@ impl HuffmanNode {
     ) -> Self {
         HuffmanNode {
             value,
+            binary: vec![],
             frequency,
             left,
             right,
@@ -107,6 +113,7 @@ impl HuffmanNode {
     ) -> Self {
         let mut node = HuffmanNode {
             value,
+            binary: vec![],
             frequency: 0,
             left,
             right,
@@ -134,6 +141,21 @@ fn create_huffman_node_vec(ordered_vec: Vec<(u8, usize)>) -> Vec<HuffmanNode> {
         huffman_node_vec.push(HuffmanNode::new(Some(tuple.0), tuple.1, None, None))
     });
     huffman_node_vec
+}
+
+fn assign_binary(huffman_tree: &mut HuffmanNode, mut prefix: Vec<bool>) {
+    if huffman_tree.value.is_some() {
+        huffman_tree.binary.extend(prefix);
+    } else {
+        if let Some(ref mut left_node) = huffman_tree.left {
+            prefix.push(false);
+            assign_binary(left_node, prefix.clone());
+        }
+        if let Some(ref mut right_node) = huffman_tree.right {
+            prefix.push(true);
+            assign_binary(right_node, prefix.clone());
+        }
+    }
 }
 
 #[cfg(test)]
