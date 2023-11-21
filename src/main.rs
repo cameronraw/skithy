@@ -1,5 +1,5 @@
 use clap::Parser;
-use std::{collections::HashMap, env, fs, io::Error, path::PathBuf};
+use std::{collections::HashMap, env, fs, io::{Error, Write}, path::PathBuf};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about=None)]
@@ -12,9 +12,39 @@ fn main() {
     let args = Args::parse();
     create_file_path(args.file_path).map_or_else(
         |err| panic!("Failed to compress file: {}", err),
-        |file_path| match fs::read(file_path) {
+        |file_path| match fs::read(file_path.clone()) {
             Ok(contents) => {
-                on_read_successful(contents);
+                let mut output_path = file_path.clone();
+                output_path.set_extension("skithy");
+                let huffman_tree = on_read_successful(contents.clone());
+                let mut encoded: Vec<bool> = vec![];
+                for byte in contents {
+                    let encoding = find_encoding(&huffman_tree, byte).unwrap();
+                    encoded.extend(encoding);
+                }
+
+                let mut file = fs::File::create(&output_path).unwrap();
+
+                let mut byte = 0u8;
+                let mut bit_index = 0;
+
+                for bit in encoded {
+                    if bit {
+                        byte |= 1 << bit_index;
+                    }
+                    bit_index += 1;
+
+                    if bit_index == 8 {
+                        file.write_all(&[byte]).unwrap();
+                        byte = 0;
+                        bit_index = 0;
+                    }
+                }
+
+                // Write any remaining bits
+                if bit_index != 0 {
+                    file.write_all(&[byte]).unwrap();
+                }
             }
             Err(err) => {
                 println!("Failed to read file: {}", err);
@@ -23,15 +53,31 @@ fn main() {
     );
 }
 
-fn on_read_successful(contents: Vec<u8>) {
+fn find_encoding(huffman_tree: &HuffmanNode, byte: u8) -> Option<Vec<bool>> {
+    let mut encoding: Option<Vec<bool>> = None;
+    if huffman_tree.value.is_some_and(|x| x == byte) {
+        encoding = Some(huffman_tree.binary.clone());
+    }
+    if let Some(ref left_node) = huffman_tree.left {
+        if encoding.is_none() {
+            encoding = find_encoding(left_node, byte)
+        }
+    }
+    if let Some(ref right_node) = huffman_tree.right {
+        if encoding.is_none() {
+            encoding = find_encoding(right_node, byte)
+        }
+    }
+    encoding
+}
+
+fn on_read_successful(contents: Vec<u8>) -> HuffmanNode {
     let freq_table = create_frequency_table(contents);
-    // let mut freq_vec: Vec<(u8, usize)> = freq_table.into_iter().collect();
-    // freq_vec.sort_by(|&(_, a), &(_, b)| a.cmp(&b));
     let freq_vec = frequency_table_to_ordered_tuple_vec(freq_table);
     let huffman_vec = create_huffman_node_vec(freq_vec);
     let mut huffman_tree = create_huffman_tree(huffman_vec);
     assign_binary(&mut huffman_tree, vec![]);
-    print!("{:?}", huffman_tree);
+    huffman_tree
 }
 
 fn frequency_table_to_ordered_tuple_vec(freq_table: HashMap<u8, usize>) -> Vec<(u8, usize)> {
@@ -64,9 +110,7 @@ fn create_huffman_tree(mut huffman_vec: Vec<HuffmanNode>) -> HuffmanNode {
         return huffman_vec.first().unwrap().clone();
     }
 
-    let left_child = huffman_vec.first().map(|item| {
-        Box::new(item.clone())
-    });
+    let left_child = huffman_vec.first().map(|item| Box::new(item.clone()));
     let right_child = huffman_vec.get(1).map(|item| Box::new(item.clone()));
 
     if left_child.is_some() {
