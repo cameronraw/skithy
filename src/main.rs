@@ -25,11 +25,20 @@ fn main() {
 
 fn on_read_successful(contents: Vec<u8>) {
     let freq_table = create_frequency_table(contents);
-    let mut freq_vec: Vec<(u8, usize)> = freq_table.into_iter().collect();
-    freq_vec.sort_by(|&(_, a), &(_, b)| a.cmp(&b));
+    // let mut freq_vec: Vec<(u8, usize)> = freq_table.into_iter().collect();
+    // freq_vec.sort_by(|&(_, a), &(_, b)| a.cmp(&b));
+    let mut freq_vec = frequency_table_to_ordered_tuple_vec(freq_table);
     let node_vec: Vec<HuffmanNode> = vec![];
     let huffman_vec = create_huffman_vec(node_vec, freq_vec);
     let huffman_tree = create_huffman_tree(huffman_vec);
+}
+
+fn frequency_table_to_ordered_tuple_vec(freq_table: HashMap<u8, usize>) -> Vec<(u8, usize)> {
+    let mut freq_vec: Vec<(u8, usize)> = freq_table.into_iter().collect();
+    println!("From function - before sort: {:?}", freq_vec);
+    freq_vec.sort_by(|&(_, a), &(_, b)| a.cmp(&b));
+    println!("From function - after sort: {:?}", freq_vec);
+    freq_vec
 }
 
 fn create_frequency_table(contents: Vec<u8>) -> HashMap<u8, usize> {
@@ -159,7 +168,11 @@ fn create_file_path(file_path: String) -> Result<PathBuf, Error> {
 
 #[cfg(test)]
 pub mod skithy_should {
+    use std::collections::HashMap;
+
     use rstest::rstest;
+
+    use crate::frequency_table_to_ordered_tuple_vec;
 
     use super::create_frequency_table;
 
@@ -167,10 +180,39 @@ pub mod skithy_should {
     #[case(vec![1, 2, 2, 2, 2, 2, 4, 4, 5, 5, 5, 5, 5, 5], vec![(1, 1), (2, 5), (4, 2), (5, 6)])]
     #[case(vec![1, 1, 1, 12, 6, 6, 4, 4, 4, 4, 4, 4, 4, 4], vec![(1, 3), (12, 1), (6, 2), (4, 8)])]
     #[case(vec![22, 22, 22, 76, 76, 7, 7, 7, 5], vec![(22, 3), (76, 2), (7, 3), (5, 1)])]
-    fn create_frequency_tables_from_vec_u8(#[case] input: Vec<u8>, #[case] expected: Vec<(u8, usize)>) {
+    fn create_frequency_tables_from_vec_u8(
+        #[case] input: Vec<u8>,
+        #[case] expected: Vec<(u8, usize)>,
+    ) {
         let freq_table = create_frequency_table(input);
         expected.into_iter().for_each(|expected_results| {
-            assert_eq!(freq_table.get(&expected_results.0).cloned().expect("No frequency value found."), expected_results.1);
+            assert_eq!(
+                freq_table
+                    .get(&expected_results.0)
+                    .cloned()
+                    .expect("No frequency value found."),
+                expected_results.1
+            );
         });
+    }
+
+    #[rstest]
+    #[case(HashMap::from([(1, 20), (2, 20), (3, 20)]), vec![(1, 20), (2, 20), (3, 20)])]
+    #[case(HashMap::from([(6, 1), (2, 3), (4, 2)]), vec![(6, 1), (4, 2), (2, 3)])]
+    #[case(HashMap::from([(30, 300), (10, 100), (20, 200)]), vec![(10, 100), (20, 200), (30, 300)])]
+    #[case(HashMap::from([(15, 15), (5, 5), (10, 10)]), vec![(5, 5), (10, 10), (15, 15)])]
+    #[case(HashMap::from([(255, 1000), (0, 500), (127, 750)]), vec![(0, 500), (127, 750), (255, 1000)])]
+    fn create_ordered_vec_from_frequency_table(
+        #[case] freq_table: HashMap<u8, usize>,
+        #[case] expected: Vec<(u8, usize)>,
+    ) {
+        let ordered_tuple_vec = frequency_table_to_ordered_tuple_vec(freq_table);
+
+        ordered_tuple_vec
+            .into_iter()
+            .enumerate()
+            .for_each(|(i, tuple)| {
+                assert_eq!(tuple, expected.get(i).cloned().expect("Out of bounds"))
+            })
     }
 }
