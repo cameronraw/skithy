@@ -35,9 +35,7 @@ fn on_read_successful(contents: Vec<u8>) {
 
 fn frequency_table_to_ordered_tuple_vec(freq_table: HashMap<u8, usize>) -> Vec<(u8, usize)> {
     let mut freq_vec: Vec<(u8, usize)> = freq_table.into_iter().collect();
-    println!("From function - before sort: {:?}", freq_vec);
     freq_vec.sort_by(|&(_, a), &(_, b)| a.cmp(&b));
-    println!("From function - after sort: {:?}", freq_vec);
     freq_vec
 }
 
@@ -58,7 +56,7 @@ fn create_frequency_table(contents: Vec<u8>) -> HashMap<u8, usize> {
 
 fn create_huffman_tree(mut huffman_vec: Vec<HuffmanNode>) -> HuffmanNode {
     if huffman_vec.is_empty() {
-        return HuffmanNode::new(None, None, None);
+        return HuffmanNode::new(None, 0, None, None);
     }
 
     if huffman_vec.len() == 1 {
@@ -76,7 +74,7 @@ fn create_huffman_tree(mut huffman_vec: Vec<HuffmanNode>) -> HuffmanNode {
         huffman_vec.remove(0);
     }
 
-    huffman_vec.push(HuffmanNode::new(None, left_child, right_child));
+    huffman_vec.push(HuffmanNode::new(None, 0, left_child, right_child));
 
     create_huffman_tree(huffman_vec)
 }
@@ -115,7 +113,7 @@ fn create_huffman_vec(
         freq_vec.remove(0);
     }
 
-    node_vec.push(HuffmanNode::new(None, left_child, right_child));
+    node_vec.push(HuffmanNode::new(None, 0, left_child, right_child));
 
     if !freq_vec.is_empty() {
         return create_huffman_vec(node_vec, freq_vec);
@@ -135,17 +133,16 @@ struct HuffmanNode {
 impl HuffmanNode {
     pub fn new(
         value: Option<u8>,
+        frequency: usize,
         left: Option<Box<HuffmanNode>>,
         right: Option<Box<HuffmanNode>>,
     ) -> Self {
-        let new_node = HuffmanNode {
+        HuffmanNode {
             value,
-            frequency: 0,
+            frequency,
             left,
             right,
-        };
-        new_node.calculate_freq();
-        new_node
+        }
     }
 
     fn calculate_freq(&self) -> usize {
@@ -166,15 +163,24 @@ fn create_file_path(file_path: String) -> Result<PathBuf, Error> {
     Ok(path_buf)
 }
 
+fn create_huffman_node_vec(ordered_vec: Vec<(u8, usize)>) -> Vec<HuffmanNode> {
+    let mut huffman_node_vec: Vec<HuffmanNode> = vec![];
+    ordered_vec.into_iter().for_each(|tuple| {
+        huffman_node_vec.push(HuffmanNode::new(Some(tuple.0), tuple.1, None, None))
+    });
+    huffman_node_vec
+}
+
 #[cfg(test)]
 pub mod skithy_should {
     use std::collections::HashMap;
 
     use rstest::rstest;
 
-    use crate::frequency_table_to_ordered_tuple_vec;
-
-    use super::create_frequency_table;
+    use super::{
+        create_frequency_table, create_huffman_node_vec, frequency_table_to_ordered_tuple_vec,
+        HuffmanNode,
+    };
 
     #[rstest]
     #[case(vec![1, 2, 2, 2, 2, 2, 4, 4, 5, 5, 5, 5, 5, 5], vec![(1, 1), (2, 5), (4, 2), (5, 6)])]
@@ -197,7 +203,6 @@ pub mod skithy_should {
     }
 
     #[rstest]
-    #[case(HashMap::from([(1, 20), (2, 20), (3, 20)]), vec![(1, 20), (2, 20), (3, 20)])]
     #[case(HashMap::from([(6, 1), (2, 3), (4, 2)]), vec![(6, 1), (4, 2), (2, 3)])]
     #[case(HashMap::from([(30, 300), (10, 100), (20, 200)]), vec![(10, 100), (20, 200), (30, 300)])]
     #[case(HashMap::from([(15, 15), (5, 5), (10, 10)]), vec![(5, 5), (10, 10), (15, 15)])]
@@ -214,5 +219,29 @@ pub mod skithy_should {
             .for_each(|(i, tuple)| {
                 assert_eq!(tuple, expected.get(i).cloned().expect("Out of bounds"))
             })
+    }
+
+    #[rstest]
+    #[case(vec![(10, 10), (20, 20), (30, 30)])]
+    #[case(vec![(5, 100), (6, 200), (7, 300)])]
+    #[case(vec![(255, 1), (254, 2), (253, 3)])]
+    #[case(vec![(1, 500), (2, 500), (3, 500)])]
+    #[case(vec![(12, 50), (24, 100), (36, 150)])]
+    #[case(vec![(100, 1000), (101, 2000), (102, 3000)])]
+    #[case(vec![(0, 0), (1, 1), (2, 2)])]
+    fn convert_ordered_vec_u8_usize_to_ordered_vec_huffman_node(#[case] input: Vec<(u8, usize)>) {
+        let huffman_node_vec: Vec<HuffmanNode> = create_huffman_node_vec(input.clone());
+
+        huffman_node_vec
+            .into_iter()
+            .enumerate()
+            .for_each(|(index, node)| {
+                let expected_node_details = input.get(index).cloned().expect("Out of bounds");
+                assert_eq!(
+                    node.value.expect("Actual value was set to None"),
+                    expected_node_details.0
+                );
+                assert_eq!(expected_node_details.1, node.frequency);
+            });
     }
 }
