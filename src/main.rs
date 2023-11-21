@@ -212,31 +212,65 @@ pub mod skithy_should {
             });
     }
 
-    #[test]
-    fn convert_huffman_node_vec_to_tree() {
-        let huffman_node_vec: Vec<HuffmanNode> = vec![
+    #[rstest]
+    #[case(
+        vec![
             HuffmanNode::new(Some(3), 5, None, None),
             HuffmanNode::new(Some(5), 10, None, None),
             HuffmanNode::new(Some(1), 15, None, None),
             HuffmanNode::new(Some(2), 20, None, None),
             HuffmanNode::new(Some(6), 25, None, None),
             HuffmanNode::new(Some(4), 30, None, None),
-        ];
-
-        let huffman_node_tree = create_huffman_tree(huffman_node_vec.clone());
+        ]
+    )]
+    #[case(
+        vec![
+            HuffmanNode::new(Some(10), 5, None, None),
+            HuffmanNode::new(Some(11), 9, None, None),
+            HuffmanNode::new(Some(7), 12, None, None),
+            HuffmanNode::new(Some(12), 13, None, None),
+            HuffmanNode::new(Some(8), 17, None, None),
+            HuffmanNode::new(Some(9), 22, None, None),
+        ]
+    )]
+    #[case(
+        vec![
+            HuffmanNode::new(Some(13), 3, None, None),
+            HuffmanNode::new(Some(14), 6, None, None),
+            HuffmanNode::new(Some(15), 9, None, None),
+            HuffmanNode::new(Some(16), 12, None, None),
+            HuffmanNode::new(Some(17), 15, None, None),
+        ]
+    )]
+    #[case(
+        vec![
+            HuffmanNode::new(Some(19), 1, None, None),
+            HuffmanNode::new(Some(20), 4, None, None),
+            HuffmanNode::new(Some(21), 7, None, None),
+            HuffmanNode::new(Some(22), 10, None, None),
+            HuffmanNode::new(Some(18), 20, None, None),
+        ]
+    )]
+    fn convert_huffman_node_vec_to_tree(#[case] input: Vec<HuffmanNode>) {
+        let huffman_node_tree = create_huffman_tree(input.clone());
 
         // The head node's frequency is the sum of all frequencies
         assert_eq!(
             huffman_node_tree.frequency,
-            huffman_node_vec
+            input
                 .iter()
                 .map(|node| node.frequency)
                 .reduce(|acc, x| acc + x)
                 .unwrap()
         );
+
+        assert!(tree_contains_all_leaf_nodes(huffman_node_tree, &input));
     }
 
-    fn tree_contains_all_leaf_nodes(huffman_tree: HuffmanNode, original_vec: &Vec<HuffmanNode>) -> bool {
+    fn tree_contains_all_leaf_nodes(
+        huffman_tree: HuffmanNode,
+        original_vec: &Vec<HuffmanNode>,
+    ) -> bool {
         let mut vec_to_check = original_vec.clone();
 
         if let Some(value) = huffman_tree.value {
@@ -253,10 +287,20 @@ pub mod skithy_should {
             assert!(huffman_tree.right.is_none());
             vec_to_check.retain(|x| x.value.is_none() || x.value.is_some_and(|y| y != value));
 
-            return true;
-            
-        } else if huffman_tree.value.is_none() {
-            unimplemented!();
+            true
+        } else {
+            let left_result = if let Some(next_left) = huffman_tree.left {
+                tree_contains_all_leaf_nodes(*next_left, original_vec)
+            } else {
+                false
+            };
+            let right_result = if let Some(next_right) = huffman_tree.right {
+                tree_contains_all_leaf_nodes(*next_right, original_vec)
+            } else {
+                false
+            };
+
+            left_result || right_result
         }
     }
 }
