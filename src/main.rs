@@ -27,10 +27,9 @@ fn on_read_successful(contents: Vec<u8>) {
     let freq_table = create_frequency_table(contents);
     // let mut freq_vec: Vec<(u8, usize)> = freq_table.into_iter().collect();
     // freq_vec.sort_by(|&(_, a), &(_, b)| a.cmp(&b));
-    let mut freq_vec = frequency_table_to_ordered_tuple_vec(freq_table);
-    let node_vec: Vec<HuffmanNode> = vec![];
-    let huffman_vec = create_huffman_vec(node_vec, freq_vec);
-    let huffman_tree = create_huffman_tree(huffman_vec);
+    let freq_vec = frequency_table_to_ordered_tuple_vec(freq_table);
+    let huffman_vec = create_huffman_node_vec(freq_vec);
+    let _huffman_tree = create_huffman_tree(huffman_vec);
 }
 
 fn frequency_table_to_ordered_tuple_vec(freq_table: HashMap<u8, usize>) -> Vec<(u8, usize)> {
@@ -60,7 +59,6 @@ fn create_huffman_tree(mut huffman_vec: Vec<HuffmanNode>) -> HuffmanNode {
     }
 
     if huffman_vec.len() == 1 {
-        // TODO: Return the node
         return huffman_vec.first().unwrap().clone();
     }
 
@@ -74,55 +72,12 @@ fn create_huffman_tree(mut huffman_vec: Vec<HuffmanNode>) -> HuffmanNode {
         huffman_vec.remove(0);
     }
 
-    huffman_vec.push(HuffmanNode::new(None, 0, left_child, right_child));
+    huffman_vec.push(HuffmanNode::from(None, left_child, right_child));
 
     create_huffman_tree(huffman_vec)
 }
 
-fn create_huffman_vec(
-    mut node_vec: Vec<HuffmanNode>,
-    mut freq_vec: Vec<(u8, usize)>,
-) -> Vec<HuffmanNode> {
-    let left_child = freq_vec.first().map(|item| {
-        Box::new(HuffmanNode {
-            value: Some(item.0),
-            frequency: item.1,
-            left: None,
-            right: None,
-        })
-    });
-
-    let right_child = freq_vec.get(1).map(|item| {
-        Box::new(HuffmanNode {
-            value: Some(item.0),
-            frequency: item.1,
-            left: None,
-            right: None,
-        })
-    });
-
-    if left_child.is_none() && right_child.is_none() {
-        return node_vec;
-    }
-
-    if left_child.is_some() {
-        freq_vec.remove(0);
-    }
-
-    if right_child.is_some() {
-        freq_vec.remove(0);
-    }
-
-    node_vec.push(HuffmanNode::new(None, 0, left_child, right_child));
-
-    if !freq_vec.is_empty() {
-        return create_huffman_vec(node_vec, freq_vec);
-    }
-
-    node_vec
-}
-
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct HuffmanNode {
     value: Option<u8>,
     frequency: usize,
@@ -145,16 +100,26 @@ impl HuffmanNode {
         }
     }
 
-    fn calculate_freq(&self) -> usize {
-        let left_freq = self
-            .left
-            .as_ref()
-            .map_or_else(|| 0, |child| child.frequency);
-        let right_freq = self
-            .right
-            .as_ref()
-            .map_or_else(|| 0, |child| child.frequency);
-        left_freq + right_freq
+    pub fn from(
+        value: Option<u8>,
+        left: Option<Box<HuffmanNode>>,
+        right: Option<Box<HuffmanNode>>,
+    ) -> Self {
+        let mut node = HuffmanNode {
+            value,
+            frequency: 0,
+            left,
+            right,
+        };
+
+        node.calc_freq();
+
+        node
+    }
+
+    fn calc_freq(&mut self) {
+        self.frequency += self.left.as_ref().map_or(0, |v| v.frequency)
+            + self.right.as_ref().map_or(0, |v| v.frequency);
     }
 }
 
@@ -176,6 +141,8 @@ pub mod skithy_should {
     use std::collections::HashMap;
 
     use rstest::rstest;
+
+    use crate::create_huffman_tree;
 
     use super::{
         create_frequency_table, create_huffman_node_vec, frequency_table_to_ordered_tuple_vec,
@@ -243,5 +210,53 @@ pub mod skithy_should {
                 );
                 assert_eq!(expected_node_details.1, node.frequency);
             });
+    }
+
+    #[test]
+    fn convert_huffman_node_vec_to_tree() {
+        let huffman_node_vec: Vec<HuffmanNode> = vec![
+            HuffmanNode::new(Some(3), 5, None, None),
+            HuffmanNode::new(Some(5), 10, None, None),
+            HuffmanNode::new(Some(1), 15, None, None),
+            HuffmanNode::new(Some(2), 20, None, None),
+            HuffmanNode::new(Some(6), 25, None, None),
+            HuffmanNode::new(Some(4), 30, None, None),
+        ];
+
+        let huffman_node_tree = create_huffman_tree(huffman_node_vec.clone());
+
+        // The head node's frequency is the sum of all frequencies
+        assert_eq!(
+            huffman_node_tree.frequency,
+            huffman_node_vec
+                .iter()
+                .map(|node| node.frequency)
+                .reduce(|acc, x| acc + x)
+                .unwrap()
+        );
+    }
+
+    fn tree_contains_all_leaf_nodes(huffman_tree: HuffmanNode, original_vec: &Vec<HuffmanNode>) -> bool {
+        let mut vec_to_check = original_vec.clone();
+
+        if let Some(value) = huffman_tree.value {
+            let matching_item_vec: Vec<HuffmanNode> = vec_to_check
+                .clone()
+                .into_iter()
+                .filter(|node| node.value.is_some_and(|x| x == value))
+                .collect();
+            assert_eq!(matching_item_vec.len(), 1);
+
+            let matching_item = matching_item_vec.first().unwrap();
+            assert_eq!(huffman_tree.frequency, matching_item.frequency);
+            assert!(huffman_tree.left.is_none());
+            assert!(huffman_tree.right.is_none());
+            vec_to_check.retain(|x| x.value.is_none() || x.value.is_some_and(|y| y != value));
+
+            return true;
+            
+        } else if huffman_tree.value.is_none() {
+            unimplemented!();
+        }
     }
 }
