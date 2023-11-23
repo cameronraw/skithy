@@ -1,16 +1,43 @@
 use clap::Parser;
-use std::{collections::HashMap, env, fs, io::{Error, Write}, path::PathBuf};
+use serde::{Deserialize, Serialize};
+use std::{
+    collections::HashMap,
+    env, fs,
+    io::{Error, Write},
+    path::PathBuf,
+};
+
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about=None)]
 struct Args {
     #[arg(short, long)]
-    file_path: String,
+    file_path: Option<String>,
+    #[arg(short, long)]
+    skithy_file: Option<String>,
 }
 
 fn main() {
     let args = Args::parse();
-    create_file_path(args.file_path).map_or_else(
+    if let Some(file_path) = args.file_path {
+        compress_file(file_path);
+    } else if let Some(skithy_file) = args.skithy_file {
+        decompress_file(skithy_file);
+    } else {
+        panic!(
+            "Too few or too many arguments passed. Choose to either compress or decompress a file"
+        )
+    }
+}
+
+fn decompress_file(file_path: String) {
+    let contents = fs::read(file_path.clone())
+        .map_or_else(|err| panic!("Could not read file: {:?}", err), |f| f);
+    
+}
+
+fn compress_file(file_path: String) {
+    create_file_path(file_path).map_or_else(
         |err| panic!("Failed to compress file: {}", err),
         |file_path| match fs::read(file_path.clone()) {
             Ok(contents) => {
@@ -125,7 +152,7 @@ fn create_huffman_tree(mut huffman_vec: Vec<HuffmanNode>) -> HuffmanNode {
     create_huffman_tree(huffman_vec)
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 struct HuffmanNode {
     value: Option<u8>,
     binary: Vec<bool>,
