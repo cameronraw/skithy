@@ -28,7 +28,11 @@ fn main() {
 }
 
 fn decompress_file(file_path: String) {
-    let _contents = fs::read(file_path.clone())
+    let contents = fs::read(file_path.clone())
         .map_or_else(|err| panic!("Could not read file: {:?}", err), |f| f);
-    todo!();
+    for byte in contents {
+        println!("Binary before shift: {:b}", byte);
+        let newbit = byte >> 1;
+        println!("Binary after shift: {:b}", newbit);
+    }
 }
