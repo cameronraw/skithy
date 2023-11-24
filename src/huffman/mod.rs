@@ -1,8 +1,9 @@
 use std::collections::HashMap;
+use core::cmp::Ordering;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct HuffmanNode {
     pub value: Option<u8>,
     pub binary: Vec<bool>,
@@ -52,6 +53,10 @@ impl HuffmanNode {
         let mut huffman_tree = HuffmanNode::create_huffman_tree(huffman_vec);
         huffman_tree.assign_binary(vec![]);
         huffman_tree
+    }
+
+    pub fn to_buffer(&self) -> Vec<u8> {
+        todo!();
     }
 
     pub fn find_encoding(&self, byte: u8) -> Option<Vec<bool>> {
@@ -142,12 +147,93 @@ impl HuffmanNode {
     }
 }
 
+impl PartialOrd for HuffmanNode {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+
+    fn lt(&self, other: &Self) -> bool {
+        matches!(self.partial_cmp(other), Some(Ordering::Less))
+    }
+
+    fn le(&self, other: &Self) -> bool {
+        matches!(self.partial_cmp(other), Some(Ordering::Less | Ordering::Equal))
+    }
+
+    fn gt(&self, other: &Self) -> bool {
+        matches!(self.partial_cmp(other), Some(Ordering::Greater))
+    }
+
+    fn ge(&self, other: &Self) -> bool {
+        matches!(self.partial_cmp(other), Some(Ordering::Greater | Ordering::Equal))
+    }
+}
+
+impl Ord for HuffmanNode {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        if let Some(this_value) = self.value {
+            if let Some(other_value) = other.value {
+                other
+                    .frequency
+                    .cmp(&self.frequency)
+                    .then_with(|| this_value.cmp(&other_value))
+            } else {
+                other.frequency.cmp(&self.frequency)
+            }
+        } else {
+            other.frequency.cmp(&self.frequency)
+        }
+    }
+}
+
 #[cfg(test)]
-pub mod skithy_should {
-    use std::collections::HashMap;
+pub mod huffman_node_should {
     use super::HuffmanNode;
+    use std::collections::HashMap;
 
     use rstest::rstest;
+
+    #[test]
+    fn order_itself_correctly_when_values_irrelevant() {
+        let mut huffman_vec = vec![
+            HuffmanNode::new(Some(10), 5, None, None),
+            HuffmanNode::new(Some(10), 3, None, None),
+            HuffmanNode::new(Some(10), 2, None, None),
+            HuffmanNode::new(Some(10), 4, None, None),
+            HuffmanNode::new(Some(10), 1, None, None),
+        ];
+
+        huffman_vec.sort();
+
+        assert_eq!(huffman_vec, vec![
+            HuffmanNode::new(Some(10), 5, None, None),
+            HuffmanNode::new(Some(10), 4, None, None),
+            HuffmanNode::new(Some(10), 3, None, None),
+            HuffmanNode::new(Some(10), 2, None, None),
+            HuffmanNode::new(Some(10), 1, None, None),
+        ]);
+    }
+
+    #[test]
+    fn order_itself_correctly_when_values_relevant() {
+        let mut huffman_vec = vec![
+            HuffmanNode::new(Some(2), 3, None, None),
+            HuffmanNode::new(Some(1), 3, None, None),
+            HuffmanNode::new(Some(5), 3, None, None),
+            HuffmanNode::new(Some(4), 3, None, None),
+            HuffmanNode::new(Some(3), 3, None, None),
+        ];
+
+        huffman_vec.sort();
+
+        assert_eq!(huffman_vec, vec![
+            HuffmanNode::new(Some(1), 3, None, None),
+            HuffmanNode::new(Some(2), 3, None, None),
+            HuffmanNode::new(Some(3), 3, None, None),
+            HuffmanNode::new(Some(4), 3, None, None),
+            HuffmanNode::new(Some(5), 3, None, None),
+        ]);
+    }
 
     #[rstest]
     #[case(vec![1, 2, 2, 2, 2, 2, 4, 4, 5, 5, 5, 5, 5, 5], vec![(1, 1), (2, 5), (4, 2), (5, 6)])]
@@ -197,7 +283,8 @@ pub mod skithy_should {
     #[case(vec![(100, 1000), (101, 2000), (102, 3000)])]
     #[case(vec![(0, 0), (1, 1), (2, 2)])]
     fn convert_ordered_vec_u8_usize_to_ordered_vec_huffman_node(#[case] input: Vec<(u8, usize)>) {
-        let huffman_node_vec: Vec<HuffmanNode> = HuffmanNode::create_huffman_node_vec(input.clone());
+        let huffman_node_vec: Vec<HuffmanNode> =
+            HuffmanNode::create_huffman_node_vec(input.clone());
 
         huffman_node_vec
             .into_iter()
