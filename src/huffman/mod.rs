@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use core::cmp::Ordering;
+use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -157,7 +157,10 @@ impl PartialOrd for HuffmanNode {
     }
 
     fn le(&self, other: &Self) -> bool {
-        matches!(self.partial_cmp(other), Some(Ordering::Less | Ordering::Equal))
+        matches!(
+            self.partial_cmp(other),
+            Some(Ordering::Less | Ordering::Equal)
+        )
     }
 
     fn gt(&self, other: &Self) -> bool {
@@ -165,23 +168,21 @@ impl PartialOrd for HuffmanNode {
     }
 
     fn ge(&self, other: &Self) -> bool {
-        matches!(self.partial_cmp(other), Some(Ordering::Greater | Ordering::Equal))
+        matches!(
+            self.partial_cmp(other),
+            Some(Ordering::Greater | Ordering::Equal)
+        )
     }
 }
 
 impl Ord for HuffmanNode {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        if let Some(this_value) = self.value {
-            if let Some(other_value) = other.value {
-                other
-                    .frequency
-                    .cmp(&self.frequency)
-                    .then_with(|| this_value.cmp(&other_value))
-            } else {
-                other.frequency.cmp(&self.frequency)
-            }
-        } else {
-            other.frequency.cmp(&self.frequency)
+        match (self.value, other.value) {
+            (Some(this_value), Some(other_value)) => self
+                .frequency
+                .cmp(&other.frequency)
+                .then_with(|| this_value.cmp(&other_value)),
+            _ => self.frequency.cmp(&other.frequency),
         }
     }
 }
@@ -193,46 +194,56 @@ pub mod huffman_node_should {
 
     use rstest::rstest;
 
-    #[test]
-    fn order_itself_correctly_when_values_irrelevant() {
-        let mut huffman_vec = vec![
+    #[rstest]
+    #[case(vec![
             HuffmanNode::new(Some(10), 5, None, None),
             HuffmanNode::new(Some(10), 3, None, None),
             HuffmanNode::new(Some(10), 2, None, None),
             HuffmanNode::new(Some(10), 4, None, None),
             HuffmanNode::new(Some(10), 1, None, None),
-        ];
-
-        huffman_vec.sort();
-
-        assert_eq!(huffman_vec, vec![
-            HuffmanNode::new(Some(10), 5, None, None),
-            HuffmanNode::new(Some(10), 4, None, None),
-            HuffmanNode::new(Some(10), 3, None, None),
-            HuffmanNode::new(Some(10), 2, None, None),
-            HuffmanNode::new(Some(10), 1, None, None),
-        ]);
-    }
-
-    #[test]
-    fn order_itself_correctly_when_values_relevant() {
-        let mut huffman_vec = vec![
+        ],vec![
+                HuffmanNode::new(Some(10), 1, None, None),
+                HuffmanNode::new(Some(10), 2, None, None),
+                HuffmanNode::new(Some(10), 3, None, None),
+                HuffmanNode::new(Some(10), 4, None, None),
+                HuffmanNode::new(Some(10), 5, None, None),
+            ]
+    )]
+    #[case(vec![
             HuffmanNode::new(Some(2), 3, None, None),
             HuffmanNode::new(Some(1), 3, None, None),
             HuffmanNode::new(Some(5), 3, None, None),
             HuffmanNode::new(Some(4), 3, None, None),
             HuffmanNode::new(Some(3), 3, None, None),
-        ];
-
-        huffman_vec.sort();
-
-        assert_eq!(huffman_vec, vec![
-            HuffmanNode::new(Some(1), 3, None, None),
-            HuffmanNode::new(Some(2), 3, None, None),
-            HuffmanNode::new(Some(3), 3, None, None),
-            HuffmanNode::new(Some(4), 3, None, None),
+        ],vec![
+                HuffmanNode::new(Some(1), 3, None, None),
+                HuffmanNode::new(Some(2), 3, None, None),
+                HuffmanNode::new(Some(3), 3, None, None),
+                HuffmanNode::new(Some(4), 3, None, None),
+                HuffmanNode::new(Some(5), 3, None, None),
+            ]
+    )]
+    #[case(vec![
+            HuffmanNode::new(Some(2), 4, None, None),
+            HuffmanNode::new(Some(1), 2, None, None),
             HuffmanNode::new(Some(5), 3, None, None),
-        ]);
+            HuffmanNode::new(Some(4), 3, None, None),
+            HuffmanNode::new(Some(3), 4, None, None),
+        ],vec![
+                HuffmanNode::new(Some(1), 2, None, None),
+                HuffmanNode::new(Some(4), 3, None, None),
+                HuffmanNode::new(Some(5), 3, None, None),
+                HuffmanNode::new(Some(2), 4, None, None),
+                HuffmanNode::new(Some(3), 4, None, None),
+            ]
+    )]
+    fn order_itself_correctly(
+        #[case] mut input: Vec<HuffmanNode>,
+        #[case] expected: Vec<HuffmanNode>,
+    ) {
+        input.sort();
+
+        assert_eq!(input, expected);
     }
 
     #[rstest]
