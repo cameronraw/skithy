@@ -1,5 +1,5 @@
 use core::cmp::Ordering;
-use std::collections::HashMap;
+use std::{collections::HashMap, error::Error, fmt::Display};
 
 use serde::{Deserialize, Serialize};
 
@@ -53,10 +53,6 @@ impl HuffmanNode {
         let mut huffman_tree = HuffmanNode::create_huffman_tree(huffman_vec);
         huffman_tree.assign_binary(vec![]);
         huffman_tree
-    }
-
-    pub fn to_buffer(&self) -> Vec<u8> {
-        todo!();
     }
 
     pub fn find_encoding(&self, byte: u8) -> Option<Vec<bool>> {
@@ -175,6 +171,59 @@ impl PartialOrd for HuffmanNode {
     }
 }
 
+impl From<HuffmanNode> for Vec<HuffmanNode> {
+    fn from(val: HuffmanNode) -> Self {
+        let mut node_vec: Vec<HuffmanNode> = vec![];
+        node_vec.push(val.clone());
+        match (val.left, val.right) {
+            (None, None) => {}
+            (None, Some(right_node)) => {
+                let unboxed = *right_node;
+                let right_node_vec: Vec<HuffmanNode> = Vec::<HuffmanNode>::from(unboxed);
+                node_vec.extend(right_node_vec);
+            }
+            (Some(left_node), None) => {
+                let unboxed = *left_node;
+                let left_node_vec: Vec<HuffmanNode> = Vec::<HuffmanNode>::from(unboxed);
+                node_vec.extend(left_node_vec);
+            }
+            (Some(left_node), Some(right_node)) => {
+                let unboxed_left = *left_node;
+                let unboxed_right = *right_node;
+                let left_node_vec: Vec<HuffmanNode> = Vec::<HuffmanNode>::from(unboxed_left);
+                let right_node_vec: Vec<HuffmanNode> = Vec::<HuffmanNode>::from(unboxed_right);
+                node_vec.extend(left_node_vec);
+                node_vec.extend(right_node_vec);
+            }
+        };
+        node_vec
+    }
+}
+
+#[derive(Debug)]
+pub struct HuffmanToVecError;
+
+impl Display for HuffmanToVecError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Could not create Vec<HuffmanNode> from HuffmanNode")
+    }
+}
+
+impl Error for HuffmanToVecError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        // TODO: Is this ideal?
+        None
+    }
+
+    fn description(&self) -> &str {
+        "description() is deprecated; use Display"
+    }
+
+    fn cause(&self) -> Option<&dyn Error> {
+        self.source()
+    }
+}
+
 impl Ord for HuffmanNode {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         match (self.value, other.value) {
@@ -185,6 +234,20 @@ impl Ord for HuffmanNode {
             _ => self.frequency.cmp(&other.frequency),
         }
     }
+}
+
+pub fn create_byte_vec_from(huffman_node_vec: Vec<HuffmanNode>) -> Vec<u8> {
+    let mut info_to_write: Vec<u8> = vec![];
+    let tree_info: Vec<u8> = huffman_node_vec.into_iter().flat_map(|node| {
+        if let Some(value) = node.value {
+            return vec![0xFF, value, node.binary.len() as u8];
+        }
+        vec![0x00, 0b00, node.binary.len() as u8]
+    }).collect();
+
+    info_to_write.insert(0, (tree_info.len() + 1) as u8);
+
+    info_to_write
 }
 
 #[cfg(test)]

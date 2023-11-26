@@ -4,7 +4,7 @@ use std::{
     path::PathBuf,
 };
 
-use crate::huffman::HuffmanNode;
+use crate::huffman::{create_byte_vec_from, HuffmanNode};
 
 pub fn compress_file(file_path: String) {
     create_file_path(file_path).map_or_else(
@@ -21,6 +21,12 @@ pub fn compress_file(file_path: String) {
                 }
 
                 let mut file = fs::File::create(&output_path).unwrap();
+
+                create_byte_vec_from(huffman_tree.into())
+                    .into_iter()
+                    .for_each(|byte| {
+                        file.write_all(&[byte]).unwrap();
+                    });
 
                 // 00000000
                 let mut byte = 0u8;
