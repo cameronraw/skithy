@@ -20,7 +20,6 @@ fn parse_tree_data(tree_data_bytes: &[u8]) -> HuffmanNode {
     let mut counter = 0;
     while counter < tree_data_bytes.len() {
         let relevant_bytes = tree_data_bytes.get(counter..=counter + 2).unwrap();
-        println!("{:?}", relevant_bytes);
         huffman_nodes.push(HuffmanNode::new(
             {
                 let value = *relevant_bytes.get(1).unwrap();
@@ -81,27 +80,32 @@ pub mod decompress_module {
     ])]
     fn should_parse_tree_data(#[case] input: &[u8]) {
         let resulting_tree = parse_tree_data(input);
-
-        assert!(resulting_tree.value.is_none());
-        match (resulting_tree.left, resulting_tree.right) {
-            (Some(left_node), Some(right_node)) => {
-                assert!(left_node.value.is_some_and(|x| x == b'A'));
-                assert!(right_node.value.is_some_and(|x| x == b'B'));
-                assert!(left_node.binary == vec![false]);
-                assert!(right_node.binary == vec![true]);
-            }
-            (None, None) => panic!("Left and Right nodes were None"),
-            (None, Some(_)) => panic!("The Left node was None"),
-            (Some(_), None) => panic!("The Right node was None"),
-        }
+        assert_tree_against_bytes(resulting_tree, input.chunks(3).collect(), vec![]);
     }
 
-    fn assert_tree_against_bytes(tree: HuffmanNode, bytes: &[u8]) {
-        if bytes.first().cloned().unwrap() == 0xFF_u8 {
-            assert!(tree.value.is_some_and(|x| x == bytes.get(1).cloned().unwrap()));
-        } else if bytes.first().cloned().unwrap() == 0x00_u8 {
-            assert!(tree.value.is_none());
-        }
+    fn assert_tree_against_bytes(tree: HuffmanNode, mut bytes: Vec<&[u8]>, acc_binary: Vec<bool>) -> HuffmanNode {
+        let this_nodes_slice = *bytes.first().clone().unwrap();
+        bytes.remove(0);
 
+        assert_eq!(tree.binary, acc_binary);
+        if this_nodes_slice.first().cloned().unwrap() == 0xFF_u8 {
+            let expected = this_nodes_slice.get(1).cloned().unwrap();
+            let actual = tree.value.unwrap();
+            assert_eq!(expected, actual);
+        } else if this_nodes_slice.first().cloned().unwrap() == 0x00_u8 {
+            assert!(tree.value.is_none());
+            assert!(tree.left.is_some() || tree.right.is_some());
+            if let Some(ref left_node) = tree.left {
+                let mut left_binary = acc_binary.clone();
+                left_binary.push(false);
+                assert_tree_against_bytes(*left_node.clone(), bytes, left_binary);
+            }
+            if let Some(ref right_node) = tree.right {
+                let mut right_binary = acc_binary.clone();
+                right_binary.push(true);
+                assert_tree_against_bytes(*right_node.clone(), bytes, right_binary);
+            }
+        }
+        tree
     }
 }
