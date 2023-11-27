@@ -15,14 +15,31 @@ pub fn decompress_file(file_path: String) {
     // }
 }
 
-fn parse_tree_data(_tree_data_bytes: &[u8]) -> HuffmanNode {
+fn parse_tree_data(tree_data_bytes: &[u8]) -> HuffmanNode {
     todo!();
 }
 
 #[cfg(test)]
 pub mod decompress_module {
+    use super::parse_tree_data;
+
     #[test]
     fn should_parse_tree_data() {
-        unimplemented!();
+        let tree_data = [0x00, 0, 1, 0xFF, b'A', 1, 0xFF, b'B', 1];
+        let resulting_tree = parse_tree_data(&tree_data);
+
+        assert!(resulting_tree.value.is_none());
+        assert!({
+            match (resulting_tree.left, resulting_tree.right) {
+                (Some(left_node), Some(right_node)) => {
+                    assert!(left_node.value.is_some_and(|x| x == b'A'));
+                    assert!(right_node.value.is_some_and(|x| x == b'B'));
+                    assert!(left_node.binary == vec![false]);
+                    assert!(right_node.binary == vec![true]);
+                    true
+                }
+                _ => false,
+            }
+        });
     }
 }

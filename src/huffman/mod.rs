@@ -8,8 +8,8 @@ pub struct HuffmanNode {
     pub value: Option<u8>,
     pub binary: Vec<bool>,
     frequency: usize,
-    left: Option<Box<HuffmanNode>>,
-    right: Option<Box<HuffmanNode>>,
+    pub left: Option<Box<HuffmanNode>>,
+    pub right: Option<Box<HuffmanNode>>,
 }
 
 impl HuffmanNode {
