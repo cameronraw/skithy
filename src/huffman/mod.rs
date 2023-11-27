@@ -245,7 +245,11 @@ pub fn create_byte_vec_from(huffman_node_vec: Vec<HuffmanNode>) -> Vec<u8> {
         vec![0x00, 0b00, node.binary.len() as u8]
     }).collect();
 
-    info_to_write.insert(0, tree_info.len() as u8);
+    let tree_info_len: u8 = tree_info.len() as u8;
+
+    info_to_write.extend(tree_info);
+
+    info_to_write.insert(0, tree_info_len);
 
     info_to_write
 }

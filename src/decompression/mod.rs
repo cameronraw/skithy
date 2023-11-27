@@ -5,14 +5,30 @@ use crate::huffman::HuffmanNode;
 pub fn decompress_file(file_path: String) {
     let contents = fs::read(file_path.clone())
         .map_or_else(|err| panic!("Could not read file: {:?}", err), |f| f);
+    println!("Contents: {:?}", contents);
     let tree_data_len = *contents.first().unwrap();
+    println!("Tree data length: {:?}", tree_data_len);
+    println!("Contents length: {:?}", contents.len());
     let tree_data: &[u8] = contents.get(1..=tree_data_len as usize).unwrap();
-    let _tree = parse_tree_data(tree_data);
-    // for byte in contents {
-    //      let _newbit = byte >> 1;
-    //      This is where we need the Huffman Tree. 0 would mean to traverse left, and 1 to traverse
-    //      right.
-    // }
+    let tree = parse_tree_data(tree_data);
+    let mut current_node = tree;
+    for byte in contents {
+        println!("{:b}", byte);
+        // while 0 < 8 {
+        //     let newbit = byte >> 1;
+        //     if newbit == 0 {
+        //         current_node = *current_node.left.unwrap("");
+        //     }
+        //     if newbit == 1 {
+        //         current_node = *current_node.right.unwrap();
+        //     }
+        //
+
+        // }
+    }
+
+    // 01010101 >> 1
+    // 0101010 >> 0
 }
 
 fn parse_tree_data(tree_data_bytes: &[u8]) -> HuffmanNode {
@@ -70,7 +86,7 @@ fn reconstruct_huffman_node(
 
 #[cfg(test)]
 pub mod decompress_module {
-    use super::parse_tree_data;
+    use super::{parse_tree_data, decompress_file};
 
     #[test]
     fn should_parse_tree_data() {
@@ -172,7 +188,6 @@ pub mod decompress_module {
                     (None, Some(_)) => panic!("The Left node was None"),
                     (Some(_), None) => panic!("The Right node was None"),
                 }
-
             }
             (None, None) => panic!("Left and Right nodes were None"),
             (None, Some(_)) => panic!("The Left node was None"),
