@@ -37,49 +37,35 @@ fn parse_tree_data(tree_data_bytes: &[u8]) -> HuffmanNode {
         counter += 3;
     }
 
-    println!("Huffman Nodes after parsing: {:?}", huffman_nodes);
+    let main_node = huffman_nodes.first().cloned().unwrap();
+    reconstruct_huffman_node(main_node, huffman_nodes, vec![])
+}
 
-    // loop {
-    //     let mut main_node = huffman_nodes.first().unwrap().clone();
-    //     if huffman_nodes.len() <= 1 {
-    //         return main_node;
-    //     }
-    //     if let Some(left_node) = huffman_nodes.get(1).cloned() {
-    //         main_node.left = Some(Box::new(left_node));
-    //         huffman_nodes.remove(1);
-    //     }
-    //     if let Some(right_node) = huffman_nodes.get(1).cloned() {
-    //         main_node.right = Some(Box::new(right_node));
-    //         huffman_nodes.remove(1);
-    //     }
-    //     println!(
-    //         "Main node - vec len {:?}: {:?}",
-    //         huffman_nodes.len(),
-    //         main_node
-    //     );
-    //     if huffman_nodes.len() == 1 {
-    //         return huffman_nodes.first().cloned().unwrap();
-    //     }
-    // }
-
+fn reconstruct_huffman_node(
+    mut main_node: HuffmanNode,
+    mut huffman_nodes: Vec<HuffmanNode>,
+    acc_binary: Vec<bool>,
+) -> HuffmanNode {
     while huffman_nodes.len() > 1 {
-        let mut main_node = huffman_nodes.first().cloned().unwrap();
         if let Some(mut left_node) = huffman_nodes.get(1).cloned() {
-            left_node.binary = vec![false];
-            main_node.left = Some(Box::new(left_node));
+            let mut left_acc_binary = acc_binary.clone();
+            left_acc_binary.push(false);
+            left_node.binary = left_acc_binary.clone();
             huffman_nodes.remove(1);
+            left_node = reconstruct_huffman_node(left_node, huffman_nodes.clone(), left_acc_binary);
+            main_node.left = Some(Box::new(left_node));
         }
         if let Some(mut right_node) = huffman_nodes.get(1).cloned() {
-            right_node.binary = vec![true];
-            main_node.right = Some(Box::new(right_node));
+            let mut right_acc_binary = acc_binary.clone();
+            right_acc_binary.push(true);
+            right_node.binary = right_acc_binary.clone();
             huffman_nodes.remove(1);
-        }
-        if huffman_nodes.len() == 1 {
-            return main_node;
+            right_node =
+                reconstruct_huffman_node(right_node, huffman_nodes.clone(), right_acc_binary);
+            main_node.right = Some(Box::new(right_node));
         }
     }
-
-    huffman_nodes.first().cloned().unwrap()
+    main_node
 }
 
 #[cfg(test)]
@@ -100,6 +86,93 @@ pub mod decompress_module {
                 assert!(right_node.value.is_some_and(|x| x == b'B'));
                 assert!(left_node.binary == vec![false]);
                 assert!(right_node.binary == vec![true]);
+            }
+            (None, None) => panic!("Left and Right nodes were None"),
+            (None, Some(_)) => panic!("The Left node was None"),
+            (Some(_), None) => panic!("The Right node was None"),
+        }
+    }
+
+    #[test]
+    fn should_parse_three_tier_trees() {
+        let tree_data = [
+            0x00, 0, 0, 0x00, 0, 1, 0xFF, b'A', 2, 0xFF, b'B', 2, 0x00, 0, 1, 0xFF, b'C', 2, 0xFF,
+            b'D', 2,
+        ];
+        let root_node = parse_tree_data(&tree_data);
+        println!("Tree: {:?}", root_node);
+        match (root_node.left, root_node.right) {
+            (Some(second_tier_left), Some(second_tier_right)) => {
+                assert_eq!(second_tier_left.value, None);
+                assert_eq!(second_tier_right.value, None);
+                assert_eq!(second_tier_right.binary, vec![true]);
+                assert_eq!(second_tier_left.binary, vec![false]);
+                match (second_tier_left.left, second_tier_left.right) {
+                    (Some(third_tier_left_left), Some(third_tier_left_right)) => {
+                        assert!(third_tier_left_left.value.is_some_and(|x| x == b'A'));
+                        assert!(third_tier_left_right.value.is_some_and(|x| x == b'B'));
+                        assert!(third_tier_left_left.binary == vec![false, false]);
+                        assert!(third_tier_left_right.binary == vec![false, true]);
+                    }
+                    (None, None) => panic!("Left and Right nodes were None"),
+                    (None, Some(_)) => panic!("The Left node was None"),
+                    (Some(_), None) => panic!("The Right node was None"),
+                }
+                match (second_tier_right.left, second_tier_right.right) {
+                    (Some(third_tier_right_left), Some(third_tier_right_right)) => {
+                        assert!(third_tier_right_left.value.is_some_and(|x| x == b'C'));
+                        assert!(third_tier_right_right.value.is_some_and(|x| x == b'D'));
+                        assert!(third_tier_right_left.binary == vec![true, false]);
+                        assert!(third_tier_right_right.binary == vec![true, true]);
+                    }
+                    (None, None) => panic!("Left and Right nodes were None"),
+                    (None, Some(_)) => panic!("The Left node was None"),
+                    (Some(_), None) => panic!("The Right node was None"),
+                }
+            }
+            (None, None) => panic!("Left and Right nodes were None"),
+            (None, Some(_)) => panic!("The Left node was None"),
+            (Some(_), None) => panic!("The Right node was None"),
+        }
+    }
+
+    #[test]
+    fn should_parse_four_tier_trees() {
+        let tree_data = [
+            0x00, 0, 0, 0x00, 0, 1, 0xFF, b'A', 2, 0xFF, b'B', 2, 0x00, 0, 1, 0xFF, b'C', 2, 0xFF,
+            b'D', 2,
+        ];
+        let root_node = parse_tree_data(&tree_data);
+        println!("Tree: {:?}", root_node);
+        match (root_node.left, root_node.right) {
+            (Some(second_tier_left), Some(second_tier_right)) => {
+                assert_eq!(second_tier_left.value, None);
+                assert_eq!(second_tier_right.value, None);
+                assert_eq!(second_tier_right.binary, vec![true]);
+                assert_eq!(second_tier_left.binary, vec![false]);
+                match (second_tier_left.left, second_tier_left.right) {
+                    (Some(third_tier_left_left), Some(third_tier_left_right)) => {
+                        assert!(third_tier_left_left.value.is_some_and(|x| x == b'A'));
+                        assert!(third_tier_left_right.value.is_some_and(|x| x == b'B'));
+                        assert!(third_tier_left_left.binary == vec![false, false]);
+                        assert!(third_tier_left_right.binary == vec![false, true]);
+                    }
+                    (None, None) => panic!("Left and Right nodes were None"),
+                    (None, Some(_)) => panic!("The Left node was None"),
+                    (Some(_), None) => panic!("The Right node was None"),
+                }
+                match (second_tier_right.left, second_tier_right.right) {
+                    (Some(third_tier_right_left), Some(third_tier_right_right)) => {
+                        assert!(third_tier_right_left.value.is_some_and(|x| x == b'C'));
+                        assert!(third_tier_right_right.value.is_some_and(|x| x == b'D'));
+                        assert!(third_tier_right_left.binary == vec![true, false]);
+                        assert!(third_tier_right_right.binary == vec![true, true]);
+                    }
+                    (None, None) => panic!("Left and Right nodes were None"),
+                    (None, Some(_)) => panic!("The Left node was None"),
+                    (Some(_), None) => panic!("The Right node was None"),
+                }
+
             }
             (None, None) => panic!("Left and Right nodes were None"),
             (None, Some(_)) => panic!("The Left node was None"),
