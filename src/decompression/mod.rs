@@ -86,7 +86,9 @@ fn reconstruct_huffman_node(
 
 #[cfg(test)]
 pub mod decompress_module {
-    use super::{parse_tree_data, decompress_file};
+    use crate::huffman::HuffmanNode;
+
+    use super::{decompress_file, parse_tree_data};
 
     #[test]
     fn should_parse_tree_data() {
@@ -130,9 +132,7 @@ pub mod decompress_module {
                         assert!(third_tier_left_left.binary == vec![false, false]);
                         assert!(third_tier_left_right.binary == vec![false, true]);
                     }
-                    (None, None) => panic!("Left and Right nodes were None"),
-                    (None, Some(_)) => panic!("The Left node was None"),
-                    (Some(_), None) => panic!("The Right node was None"),
+                    pattern => handle_invalid_state(pattern),
                 }
                 match (second_tier_right.left, second_tier_right.right) {
                     (Some(third_tier_right_left), Some(third_tier_right_right)) => {
@@ -141,14 +141,19 @@ pub mod decompress_module {
                         assert!(third_tier_right_left.binary == vec![true, false]);
                         assert!(third_tier_right_right.binary == vec![true, true]);
                     }
-                    (None, None) => panic!("Left and Right nodes were None"),
-                    (None, Some(_)) => panic!("The Left node was None"),
-                    (Some(_), None) => panic!("The Right node was None"),
+                    pattern => handle_invalid_state(pattern),
                 }
             }
+            pattern => handle_invalid_state(pattern),
+        }
+    }
+
+    fn handle_invalid_state(pattern: (Option<Box<HuffmanNode>>, Option<Box<HuffmanNode>>)) {
+        match pattern {
             (None, None) => panic!("Left and Right nodes were None"),
             (None, Some(_)) => panic!("The Left node was None"),
             (Some(_), None) => panic!("The Right node was None"),
+            _ => {}
         }
     }
 
